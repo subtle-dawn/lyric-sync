@@ -1,0 +1,77 @@
+const fs=require('fs'),vm=require('vm'),crypto=require('crypto'),assert=require('assert');
+const nodes=new Map();
+const node=key=>{if(!nodes.has(key))nodes.set(key,{innerHTML:'',textContent:'',value:'',style:{setProperty(){}},classList:{toggle(){},add(){},remove(){}},setAttribute(key,value){this[key]=value},addEventListener(){},showModal(){},close(){},focus(){}});return nodes.get(key)};
+const buttons=['en','ja'].map(lang=>({...node('language-'+lang),dataset:{lang}}));
+let cards=[];
+const document={querySelector:node,querySelectorAll:selector=>selector==='[data-lang]'?buttons:selector==='.section-card'?cards:[],createElement:()=>({setAttribute(){},remove(){this.removed=true}}),documentElement:{style:{setProperty(){}}},body:node('body'),getElementById:node};
+const ctx={document,crypto,LyricCounter:{load:()=>Promise.resolve(),language:()=> 'en',analyze:()=>({count:0,lang:'en'})},localStorage:{getItem(){return null},setItem(){}},ResizeObserver:class{observe(){}},setTimeout(){},clearTimeout(){},structuredClone,console};
+vm.createContext(ctx);vm.runInContext(fs.readFileSync('i18n.js','utf8')+'\n'+fs.readFileSync('compatibility.js','utf8')+'\n'+fs.readFileSync('app.js','utf8'),ctx);
+ctx.FormData=class {};
+assert.equal(vm.runInContext('state.lang',ctx),'ja');
+assert.equal(vm.runInContext('state.title',ctx),'');
+assert(vm.runInContext("state.sections.every(section=>section.lines.every(line=>line.text===''&&line.reading===''))",ctx));
+const original=vm.runInContext('JSON.stringify(state.sections)',ctx);
+for(const lang of ['en','ja','en']){
+  buttons.find(b=>b.dataset.lang===lang).onclick();
+  assert.equal(document.documentElement.lang,lang);
+  const english=lang==='en';
+  assert.equal(node('#bottom-add').textContent,english?'＋ Add new section':'＋ 新しいセクションを追加');
+  assert.equal(node('#licenses-link').textContent,english?'Licenses':'ライセンス');
+  assert.equal(node('#licenses-link').href,'licenses.html?lang='+lang);
+  assert(node('#editor').innerHTML.includes(english?'No comparison':'比較なし'));
+  assert(node('#editor').innerHTML.includes(english?'Duplicate section':'パートを複製'));
+  node('#export').onclick();
+  assert.equal(node('#dialog-title').textContent,english?'Export':'エクスポート');
+  assert(node('#dialog-body').innerHTML.includes(english?'JSON also saves readings':'JSONは読みも保存'));
+  node('#add-section').onclick();
+  assert.equal(node('#dialog-title').textContent,english?'New section':'新しいセクション');
+  assert(node('#dialog-actions').innerHTML.includes(english?'>Add<':'>追加<'));
+  vm.runInContext("state.sections.push(makeSection('Test',1));deleteSection(state.sections[0]);state.sections.pop()",ctx);
+  assert(node('#dialog-body').innerHTML.includes(english?'and all its lyrics?':'と、その歌詞を削除します。'));
+  assert.equal(vm.runInContext('JSON.stringify(state.sections)',ctx),original);
+}
+console.log('English/Japanese switching, dialogs, labels and lyric preservation passed');
+node('#reset-song').onclick();
+assert(!node('#dialog-actions').innerHTML.includes('cancel-reset'));
+node('#close-dialog').onclick();
+assert.equal(vm.runInContext('JSON.stringify(state.sections)',ctx),original);
+node('#reset-song').onclick();
+assert.equal(node('#dialog-title').textContent,'Reset this song?');
+node('#dialog-form').onsubmit({preventDefault(){}});
+assert.equal(vm.runInContext('state.title',ctx),'');
+assert.equal(vm.runInContext('state.lang',ctx),'en');
+assert.equal(vm.runInContext('state.sections.length',ctx),1);
+assert(vm.runInContext("state.sections[0].lines.every(line=>line.text===''&&line.reading==='')",ctx));
+assert.equal(vm.runInContext('active===state.sections[0].id',ctx),true);
+console.log('Reset confirmation, cancel and empty-song state passed');
+// Use the real analyzer to exercise reading inputs and units independent of UI language.
+vm.runInContext(fs.readFileSync('counter.js','utf8')+'\nLyricCounter.load=()=>Promise.resolve();',ctx);
+vm.runInContext("state.sections=[{id:'mixed',name:'Mixed',lines:[{text:'beautiful',reading:''},{text:'学校',reading:'がっこう'}]}]",ctx);
+const rows=[0,1].map(index=>{
+  const parts={'.count':{classList:{toggle(name,value){this[name]=value}}},'.dots':{}};
+  return {dataset:{line:String(index)},querySelector:key=>parts[key]?.removed?null:parts[key]||null,insertBefore:element=>{parts['.reading-input']=element}};
+});
+cards=[{dataset:{id:'mixed'},querySelectorAll:()=>rows}];
+for(const lang of ['en','ja']){
+  vm.runInContext(`state.lang='${lang}';updateCounts()`,ctx);
+  assert(rows[0].querySelector('.count').textContent.endsWith(lang==='en'?'syllables':'音節'));
+  assert(rows[1].querySelector('.count').textContent.endsWith(lang==='en'?'morae':'モーラ'));
+  assert.equal(rows[0].querySelector('.reading-input'),null);
+  assert.equal(rows[1].querySelector('.reading-input').value,'がっこう');
+}
+vm.runInContext("state.sections[0].lines[1].text='beautiful';updateCounts()",ctx);
+assert.equal(rows[1].querySelector('.reading-input'),null);
+vm.runInContext("state.sections[0].lines[0].text='学校';updateCounts()",ctx);
+assert(rows[0].querySelector('.reading-input'));
+assert.equal(rows[0].querySelector('.count').textContent,'? モーラ');
+console.log('Mixed-language rows: units, live reading fields and UI independence passed');
+vm.runInContext("state.sections.push({id:'reference',name:'Reference',lines:[{text:'beautiful',reading:''}]});state.sections[0].reference='reference';state.sections[0].lines[1]={text:'',reading:''};updateCounts()",ctx);
+assert.equal(rows[1].querySelector('.count').classList.mismatch,true);
+vm.runInContext("state.sections[0].lines[1].text='きょう';updateCounts()",ctx);
+assert.equal((rows[1].querySelector('.dots').innerHTML.match(/dot extra/g)||[]).length,2);
+vm.runInContext("state.sections[0].lines[1].text='';updateCounts()",ctx);
+vm.runInContext("state.sections[1].lines.push({text:'',reading:''});updateCounts()",ctx);
+assert.equal(rows[1].querySelector('.count').classList.mismatch,false);
+vm.runInContext("state.sections[1].lines.pop();state.sections[0].reference=null;updateCounts()",ctx);
+assert.equal(rows[1].querySelector('.count').classList.mismatch,false);
+console.log('Missing comparison rows turn red, including empty added rows, and reset when comparison changes');

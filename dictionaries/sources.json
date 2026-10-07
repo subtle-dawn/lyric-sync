@@ -1,0 +1,28 @@
+{
+  "downloaded": "2026-10-07",
+  "cmudict": {
+    "repository": "https://github.com/cmusphinx/cmudict",
+    "commit": "74790861f652b15e4ac49015a90074ad62a27690",
+    "entries": 135166,
+    "sha256": "81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22"
+  },
+  "kuromoji": {
+    "version": "0.1.2",
+    "source": "https://registry.npmjs.org/kuromoji/-/kuromoji-0.1.2.tgz",
+    "integrity": "sha512-V0dUf+C2LpcPEXhoHLMAop/bOht16Dyr+mDiIE39yX3vqau7p80De/koFqpiTcL1zzdZlc3xuHZ8u5gjYRfFaQ==",
+    "dictionaryFiles": [
+      "base.dat.gz",
+      "cc.dat.gz",
+      "check.dat.gz",
+      "tid.dat.gz",
+      "tid_map.dat.gz",
+      "tid_pos.dat.gz",
+      "unk.dat.gz",
+      "unk_char.dat.gz",
+      "unk_compat.dat.gz",
+      "unk_invoke.dat.gz",
+      "unk_map.dat.gz",
+      "unk_pos.dat.gz"
+    ]
+  }
+}
