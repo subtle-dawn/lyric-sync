@@ -18,19 +18,23 @@ function updateCounts(){
     const section=state.sections.find(s=>s.id===card.dataset.id),target=baseline(section);
     card.querySelectorAll('.lyric-row').forEach(row=>{
       const index=Number(row.dataset.line),line=section.lines[index],analysis=LyricCounter.analyze(line),n=analysis.count;
-      const expected=target?.[index]?.lang===analysis.lang?target[index].count??undefined:undefined;
+      const emptyLine=!line.text.trim()&&!line.reading.trim();
+      const displayLang=emptyLine&&target?.[index]?target[index].lang:analysis.lang;
+      const expected=target?.[index]?.lang===displayLang?target[index].count??undefined:undefined;
+      const missingReferenceLine=!!target&&index>=target.length;
       const c=row.querySelector('.count');
-      c.textContent=`${n===null?(analysis.status==='loading'?'…':'?'):(analysis.estimated?'≈ ':'')+n} ${t(analysis.lang==='en'?'音節':'モーラ')}`;
+      const currentCount=n===null?(analysis.status==='loading'?'…':'?'):(analysis.estimated?'≈ ':'')+n;
+      const unit=t(displayLang==='en'?'音節':'モーラ');
+      c.textContent=target?`${currentCount}/${missingReferenceLine?0:expected??'?'}${state.lang==='en'?' ':''}${unit}`:`${currentCount} ${unit}`;
       c.title=t(n===null?'読みが必要':analysis.estimated?'辞書外推定':analysis.ambiguous?'複数発音':'辞書カウント');
       let readingInput=row.querySelector('.reading-input');
-      if(analysis.lang==='ja'&&state.options.readings){
+      if(displayLang==='ja'&&state.options.readings){
         if(!readingInput){readingInput=document.createElement('input');readingInput.className='reading-input';readingInput.value=line.reading;row.insertBefore(readingInput,c)}
         readingInput.setAttribute('aria-label',t('読みラベル',{line:index+1}));
         readingInput.placeholder=n!==null&&line.text?analysis.reading:t('よみがな');readingInput.title=t('読み自動説明');
       }else readingInput?.remove();
-      const missingReferenceLine=!!target&&index>=target.length;
       c.classList.toggle('mismatch',missingReferenceLine||(n!==null&&expected!==undefined&&n!==expected&&!!line.text));
-      row.querySelector('.dots').innerHTML=Array.from({length:n===null?0:Math.min(Math.max(n,expected||0),32)},(_,k)=>`<i class="dot ${k>=n?'empty':missingReferenceLine||(expected!==undefined&&k>=expected)?'extra':''}"></i>`).join('');
+      row.querySelector('.dots').innerHTML=Array.from({length:Math.min(Math.max(n??0,expected||0),32)},(_,k)=>`<i class="dot ${k>=(n??0)?'empty':missingReferenceLine||(expected!==undefined&&k>=expected)?'extra':''}"></i>`).join('');
     });
   });
 }

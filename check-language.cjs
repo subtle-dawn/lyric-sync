@@ -75,3 +75,8 @@ assert.equal(rows[1].querySelector('.count').classList.mismatch,false);
 vm.runInContext("state.sections[1].lines.pop();state.sections[0].reference=null;updateCounts()",ctx);
 assert.equal(rows[1].querySelector('.count').classList.mismatch,false);
 console.log('Missing comparison rows turn red, including empty added rows, and reset when comparison changes');
+vm.runInContext("state.sections[1].lines=[{text:'がっこう',reading:''},{text:'きょう',reading:''}];state.sections[0].reference='reference';state.sections[0].lines[0]={text:'',reading:''};state.sections[0].lines[1]={text:'き',reading:''};updateCounts()",ctx);
+assert.equal(rows[0].querySelector('.count').textContent,'0/4モーラ');
+assert.equal((rows[0].querySelector('.dots').innerHTML.match(/dot empty/g)||[]).length,4);
+assert.equal(rows[1].querySelector('.count').textContent,'1/2モーラ');
+console.log('Comparison ratios and reference dots for empty Japanese rows passed');

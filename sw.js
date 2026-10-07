@@ -1,5 +1,5 @@
 // Generated as sw.js by build-pwa.cjs; cache version is based on file contents.
-const VERSION = 'd088fb3e3f866e98';
+const VERSION = 'cb783cf3a583ac28';
 const ASSETS = [
   "index.html",
   "style.css",
